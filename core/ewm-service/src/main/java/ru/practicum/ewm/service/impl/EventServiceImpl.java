@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import ru.practicum.ewm.client.UserClient;
 import ru.practicum.ewm.dto.*;
 import ru.practicum.ewm.exception.ConflictException;
 import ru.practicum.ewm.exception.NotFoundException;
@@ -17,6 +18,8 @@ import ru.practicum.ewm.repository.*;
 import ru.practicum.ewm.service.EventService;
 import ru.practicum.ewm.service.StatsHelperService;
 import ru.practicum.ewm.specification.EventSpecification;
+import ru.practicum.ewm.dto.UserDto;
+import ru.practicum.ewm.dto.UserShortDto;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -35,7 +38,7 @@ public class EventServiceImpl implements EventService {
     private static final long MIN_HOURS_BEFORE_EVENT = 2L;
 
     private final EventRepository eventRepository;
-    private final UserRepository userRepository;
+    private final UserClient userClient;
     private final CategoryRepository categoryRepository;
     private final RequestRepository requestRepository;
     private final CommentRepository commentRepository;
@@ -141,7 +144,7 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public EventFullDto addEvent(Long userId, NewEventDto newEventDto) {
-        User initiator = getUser(userId);
+        checkUserExists(userId);
         Category category = getCategory(newEventDto.getCategory());
 
         if (newEventDto.getEventDate()
@@ -154,7 +157,7 @@ public class EventServiceImpl implements EventService {
         Event event = eventMapper.toEntity(newEventDto);
 
         event.setCategory(category);
-        event.setInitiator(initiator);
+        event.setInitiatorId(userId);
         event.setState(EventState.PENDING);
         event.setCreatedOn(LocalDateTime.now());
 
@@ -361,6 +364,7 @@ public class EventServiceImpl implements EventService {
     private EventShortDto toShortDto(Event event, long views, long commentsCount) {
         EventShortDto dto = eventMapper.toShortDto(event);
 
+        dto.setInitiator(getInitiator(event.getInitiatorId()));
         dto.setConfirmedRequests(
                 requestRepository.countByEventIdAndStatus(
                         event.getId(),
@@ -377,6 +381,7 @@ public class EventServiceImpl implements EventService {
     private EventFullDto toFullDto(Event event, long views, long commentsCount) {
         EventFullDto dto = eventMapper.toFullDto(event);
 
+        dto.setInitiator(getInitiator(event.getInitiatorId()));
         dto.setConfirmedRequests(
                 requestRepository.countByEventIdAndStatus(
                         event.getId(),
@@ -448,15 +453,16 @@ public class EventServiceImpl implements EventService {
     }
 
     private void checkUserExists(Long userId) {
-        if (!userRepository.existsById(userId)) {
-            throw new NotFoundException("User with id=" + userId + " was not found");
-        }
+        userClient.getUser(userId);
     }
 
-    private User getUser(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new NotFoundException("User with id=" + userId + " was not found"));
+    private UserShortDto getInitiator(Long userId) {
+        UserDto user = userClient.getUser(userId);
+
+        return UserShortDto.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .build();
     }
 
     private Category getCategory(Long categoryId) {

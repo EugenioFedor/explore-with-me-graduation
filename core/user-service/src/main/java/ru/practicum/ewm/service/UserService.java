@@ -13,4 +13,6 @@ public interface UserService {
     UserDto registerUser(NewUserRequest newUserRequest);
 
     void deleteUser(Long userId);
+
+    UserDto getUser(Long userId);
 }

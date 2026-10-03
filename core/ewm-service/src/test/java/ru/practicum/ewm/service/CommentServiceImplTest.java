@@ -9,6 +9,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import ru.practicum.ewm.dto.CommentDto;
+import ru.practicum.ewm.dto.UserDto;
 import ru.practicum.ewm.exception.ConflictException;
 import ru.practicum.ewm.exception.NotFoundException;
 import ru.practicum.ewm.mapper.CommentMapper;
@@ -16,8 +17,8 @@ import ru.practicum.ewm.model.Comment;
 import ru.practicum.ewm.model.CommentStatus;
 import ru.practicum.ewm.repository.CommentRepository;
 import ru.practicum.ewm.repository.EventRepository;
-import ru.practicum.ewm.repository.UserRepository;
 import ru.practicum.ewm.service.impl.CommentServiceImpl;
+import ru.practicum.ewm.client.UserClient;
 
 import java.util.List;
 import java.util.Optional;
@@ -34,7 +35,7 @@ class CommentServiceImplTest {
     private CommentRepository commentRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private UserClient userClient;
 
     @Mock
     private EventRepository eventRepository;
@@ -56,15 +57,28 @@ class CommentServiceImplTest {
         Comment comment = new Comment();
         comment.setId(10L);
         comment.setStatus(CommentStatus.PUBLISHED);
+        comment.setAuthorId(1L);
 
-        CommentDto dto = CommentDto.builder().id(10L).status("PUBLISHED").build();
+        CommentDto dto = CommentDto.builder()
+                .id(10L)
+                .status("PUBLISHED")
+                .build();
 
         when(eventRepository.existsById(2L)).thenReturn(true);
-        when(commentRepository.findByEventIdAndStatus(eq(2L), eq(CommentStatus.PUBLISHED), any(Pageable.class)))
+
+        when(commentRepository.findByEventIdAndStatus(
+                eq(2L),
+                eq(CommentStatus.PUBLISHED),
+                any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(comment)));
+
         when(commentMapper.toDto(comment)).thenReturn(dto);
 
-        List<CommentDto> result = commentService.getEventComments(2L, 0, 10, request);
+        when(userClient.getUser(1L))
+                .thenReturn(createUser(1L));
+
+        List<CommentDto> result =
+                commentService.getEventComments(2L, 0, 10, request);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getId()).isEqualTo(10L);
@@ -86,13 +100,24 @@ class CommentServiceImplTest {
         Comment comment = new Comment();
         comment.setId(10L);
         comment.setStatus(CommentStatus.PUBLISHED);
+        comment.setAuthorId(1L);
 
-        CommentDto dto = CommentDto.builder().id(10L).status("PUBLISHED").build();
+        CommentDto dto = CommentDto.builder()
+                .id(10L)
+                .status("PUBLISHED")
+                .build();
 
-        when(commentRepository.findByIdAndEventId(10L, 2L)).thenReturn(Optional.of(comment));
-        when(commentMapper.toDto(comment)).thenReturn(dto);
+        when(commentRepository.findByIdAndEventId(10L, 2L))
+                .thenReturn(Optional.of(comment));
 
-        CommentDto result = commentService.getEventComment(2L, 10L, request);
+        when(commentMapper.toDto(comment))
+                .thenReturn(dto);
+
+        when(userClient.getUser(1L))
+                .thenReturn(createUser(1L));
+
+        CommentDto result =
+                commentService.getEventComment(2L, 10L, request);
 
         assertThat(result.getId()).isEqualTo(10L);
         verify(statsHelperService).hit(request);
@@ -126,14 +151,26 @@ class CommentServiceImplTest {
         Comment comment = new Comment();
         comment.setId(10L);
         comment.setStatus(CommentStatus.PENDING);
+        comment.setAuthorId(1L);
 
-        CommentDto dto = CommentDto.builder().id(10L).status("PENDING").build();
+        CommentDto dto = CommentDto.builder()
+                .id(10L)
+                .status("PENDING")
+                .build();
 
-        when(commentRepository.findAllByStatus(eq(CommentStatus.PENDING), any(Pageable.class)))
+        when(commentRepository.findAllByStatus(
+                eq(CommentStatus.PENDING),
+                any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(comment)));
-        when(commentMapper.toDto(comment)).thenReturn(dto);
 
-        List<CommentDto> result = commentService.getAllComments("PENDING", 0, 10);
+        when(commentMapper.toDto(comment))
+                .thenReturn(dto);
+
+        when(userClient.getUser(1L))
+                .thenReturn(createUser(1L));
+
+        List<CommentDto> result =
+                commentService.getAllComments("PENDING", 0, 10);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getStatus()).isEqualTo("PENDING");
@@ -161,14 +198,22 @@ class CommentServiceImplTest {
         Comment comment = new Comment();
         comment.setId(10L);
         comment.setStatus(CommentStatus.PENDING);
+        comment.setAuthorId(1L);
 
-        when(commentRepository.findById(10L)).thenReturn(Optional.of(comment));
-        when(commentRepository.save(any(Comment.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(commentRepository.findById(10L))
+                .thenReturn(Optional.of(comment));
+
+        when(commentRepository.save(any(Comment.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
         when(commentMapper.toDto(any(Comment.class)))
                 .thenAnswer(inv -> CommentDto.builder()
                         .id(10L)
                         .status(((Comment) inv.getArgument(0)).getStatus().name())
                         .build());
+
+        when(userClient.getUser(1L))
+                .thenReturn(createUser(1L));
 
         CommentDto result = commentService.publishComment(10L);
 
@@ -204,14 +249,22 @@ class CommentServiceImplTest {
         Comment comment = new Comment();
         comment.setId(10L);
         comment.setStatus(CommentStatus.PENDING);
+        comment.setAuthorId(1L);
 
-        when(commentRepository.findById(10L)).thenReturn(Optional.of(comment));
-        when(commentRepository.save(any(Comment.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(commentRepository.findById(10L))
+                .thenReturn(Optional.of(comment));
+
+        when(commentRepository.save(any(Comment.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
         when(commentMapper.toDto(any(Comment.class)))
                 .thenAnswer(inv -> CommentDto.builder()
                         .id(10L)
                         .status(((Comment) inv.getArgument(0)).getStatus().name())
                         .build());
+
+        when(userClient.getUser(1L))
+                .thenReturn(createUser(1L));
 
         CommentDto result = commentService.rejectComment(10L);
 
@@ -248,5 +301,13 @@ class CommentServiceImplTest {
                 .isInstanceOf(NotFoundException.class);
 
         verify(commentRepository, never()).deleteById(anyLong());
+    }
+
+    private UserDto createUser(Long id) {
+        return UserDto.builder()
+                .id(id)
+                .name("Test User")
+                .email("test@example.com")
+                .build();
     }
 }

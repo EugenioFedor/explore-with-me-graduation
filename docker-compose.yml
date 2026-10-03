@@ -20,6 +20,7 @@ services:
       discovery-server:
         condition: service_healthy
     environment:
+      SERVER_PORT: 8888
       EUREKA_URL: http://discovery-server:8761/eureka/
       EUREKA_HOSTNAME: config-server
     healthcheck:
@@ -42,7 +43,13 @@ services:
     depends_on:
       config-server:
         condition: service_healthy
-      ewm-service:
+      event-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+      request-service:
+        condition: service_started
+      comment-service:
         condition: service_started
     environment:
       EUREKA_URL: http://discovery-server:8761/eureka/
@@ -79,6 +86,93 @@ services:
       POSTGRES_PASSWORD: postgres
       EUREKA_URL: http://discovery-server:8761/eureka/
       EUREKA_HOSTNAME: stats-server
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+
+  user-service:
+    build:
+      context: .
+      dockerfile: core/user-service/Dockerfile
+    depends_on:
+      user-db:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://user-db:5432/users
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      EUREKA_URL: http://discovery-server:8761/eureka/
+      EUREKA_HOSTNAME: user-service
+
+  request-service:
+    build:
+      context: .
+      dockerfile: core/request-service/Dockerfile
+    depends_on:
+      request-db:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://request-db:5432/requests
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      EUREKA_URL: http://discovery-server:8761/eureka/
+      EUREKA_HOSTNAME: request-service
+
+  comment-service:
+    build:
+      context: .
+      dockerfile: core/comment-service/Dockerfile
+    depends_on:
+      comment-db:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://comment-db:5432/comments
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      EUREKA_URL: http://discovery-server:8761/eureka/
+      EUREKA_HOSTNAME: comment-service
+
+  comment-db:
+    image: postgres:17
+    ports:
+      - "6545:5432"
+    environment:
+      POSTGRES_DB: comments
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - comment-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d comments" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  request-db:
+    image: postgres:17
+    ports:
+      - "6544:5432"
+    environment:
+      POSTGRES_DB: requests
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - request-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d requests" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   stats-db:
     image: postgres:17
@@ -96,28 +190,44 @@ services:
       timeout: 5s
       retries: 10
 
-  ewm-db:
+  event-db:
     image: postgres:17
     ports:
       - "6542:5432"
     environment:
-      POSTGRES_DB: ewm
+      POSTGRES_DB: events
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
-      - ewm-db-data:/var/lib/postgresql/data
+      - event-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d ewm" ]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d events" ]
       interval: 5s
       timeout: 5s
       retries: 10
 
-  ewm-service:
+  user-db:
+    image: postgres:17
+    ports:
+      - "6543:5432"
+    environment:
+      POSTGRES_DB: users
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d users" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  event-service:
     build:
       context: .
-      dockerfile: core/ewm-service/Dockerfile
+      dockerfile: core/event-service/Dockerfile
     depends_on:
-      ewm-db:
+      event-db:
         condition: service_healthy
       stats-server:
         condition: service_healthy
@@ -126,12 +236,15 @@ services:
       config-server:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://ewm-db:5432/ewm
+      SPRING_DATASOURCE_URL: jdbc:postgresql://event-db:5432/events
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       EUREKA_URL: http://discovery-server:8761/eureka/
-      EUREKA_HOSTNAME: ewm-service
+      EUREKA_HOSTNAME: event-service
 
 volumes:
   stats-db-data:
-  ewm-db-data:
+  event-db-data:
+  user-db-data:
+  request-db-data:
+  comment-db-data:

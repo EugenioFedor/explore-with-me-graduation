@@ -13,7 +13,7 @@ import ru.practicum.ewm.mapper.RequestMapper;
 import ru.practicum.ewm.model.*;
 import ru.practicum.ewm.repository.EventRepository;
 import ru.practicum.ewm.repository.RequestRepository;
-import ru.practicum.ewm.repository.UserRepository;
+import ru.practicum.ewm.client.UserClient;
 import ru.practicum.ewm.service.RequestService;
 
 import java.time.LocalDateTime;
@@ -27,17 +27,17 @@ public class RequestServiceImpl implements RequestService {
 
     private final RequestRepository requestRepository;
     private final EventRepository eventRepository;
-    private final UserRepository userRepository;
+    private final UserClient userClient;
     private final RequestMapper requestMapper;
 
     @Override
     public ParticipationRequestDto addRequest(Long userId, Long eventId) {
         log.info("User id={} requests participation in event id={}", userId, eventId);
-        User requester = getUser(userId);
+        checkUserExists(userId);
         Event event = getEvent(eventId);
 
         // Инициатор не может подать заявку на своё событие
-        if (event.getInitiator().getId().equals(userId)) {
+        if (event.getInitiatorId().equals(userId)) {
             throw new ConflictException("Event initiator cannot request participation in own event");
         }
         // Нельзя участвовать в неопубликованном событии
@@ -60,8 +60,8 @@ public class RequestServiceImpl implements RequestService {
 
         Request request = Request.builder()
                 .created(LocalDateTime.now())
-                .event(event)
-                .requester(requester)
+                .eventId(eventId)
+                .requesterId(userId)
                 .status(autoConfirm ? RequestStatus.CONFIRMED : RequestStatus.PENDING)
                 .build();
 
@@ -81,7 +81,7 @@ public class RequestServiceImpl implements RequestService {
         checkUserExists(userId);
         Request request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new NotFoundException("Request with id=" + requestId + " was not found"));
-        if (!request.getRequester().getId().equals(userId)) {
+        if (!request.getRequesterId().equals(userId)) {
             throw new NotFoundException("Request with id=" + requestId + " was not found");
         }
         request.setStatus(RequestStatus.CANCELED);
@@ -92,7 +92,7 @@ public class RequestServiceImpl implements RequestService {
     public List<ParticipationRequestDto> getEventRequests(Long userId, Long eventId) {
         log.info("Getting requests for event id={} of user id={}", eventId, userId);
         Event event = getEvent(eventId);
-        if (!event.getInitiator().getId().equals(userId)) {
+        if (!event.getInitiatorId().equals(userId)) {
             throw new NotFoundException("Event with id=" + eventId + " was not found");
         }
         return requestMapper.toDtoList(requestRepository.findByEventId(eventId));
@@ -104,7 +104,7 @@ public class RequestServiceImpl implements RequestService {
                                                                EventRequestStatusUpdateRequest updateRequest) {
         log.info("User id={} updates requests status for event id={}", userId, eventId);
         Event event = getEvent(eventId);
-        if (!event.getInitiator().getId().equals(userId)) {
+        if (!event.getInitiatorId().equals(userId)) {
             throw new NotFoundException("Event with id=" + eventId + " was not found");
         }
 
@@ -167,19 +167,12 @@ public class RequestServiceImpl implements RequestService {
         return new EventRequestStatusUpdateResult(confirmedList, rejectedList);
     }
 
-    private User getUser(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User with id=" + userId + " was not found"));
-    }
-
     private Event getEvent(Long eventId) {
         return eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
     }
 
     private void checkUserExists(Long userId) {
-        if (!userRepository.existsById(userId)) {
-            throw new NotFoundException("User with id=" + userId + " was not found");
-        }
+        userClient.getUser(userId);
     }
 }

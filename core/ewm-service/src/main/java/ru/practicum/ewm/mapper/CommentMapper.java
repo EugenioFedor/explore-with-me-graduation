@@ -8,7 +8,7 @@ import ru.practicum.ewm.dto.NewCommentDto;
 import ru.practicum.ewm.dto.UpdateCommentDto;
 import ru.practicum.ewm.model.Comment;
 
-@Mapper(componentModel = MappingConstants.ComponentModel.SPRING, uses = {UserMapper.class})
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface CommentMapper {
 
     @Mapping(target = "id", ignore = true)
@@ -16,11 +16,11 @@ public interface CommentMapper {
     @Mapping(target = "updated", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "event", ignore = true)
-    @Mapping(target = "author", ignore = true)
+    @Mapping(target = "authorId", ignore = true)
     Comment toEntity(NewCommentDto newCommentDto);
 
     @Mapping(source = "event.id", target = "eventId")
-    @Mapping(source = "author", target = "author")
+    @Mapping(target = "author", ignore = true)
     CommentDto toDto(Comment comment);
 
     @Mapping(target = "id", ignore = true)
@@ -28,6 +28,6 @@ public interface CommentMapper {
     @Mapping(target = "updated", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "event", ignore = true)
-    @Mapping(target = "author", ignore = true)
+    @Mapping(target = "authorId", ignore = true)
     Comment toEntity(UpdateCommentDto updateCommentDto);
 }

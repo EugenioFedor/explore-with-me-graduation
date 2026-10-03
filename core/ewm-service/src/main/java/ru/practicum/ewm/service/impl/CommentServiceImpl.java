@@ -16,7 +16,9 @@ import ru.practicum.ewm.mapper.CommentMapper;
 import ru.practicum.ewm.model.*;
 import ru.practicum.ewm.repository.CommentRepository;
 import ru.practicum.ewm.repository.EventRepository;
-import ru.practicum.ewm.repository.UserRepository;
+import ru.practicum.ewm.client.UserClient;
+import ru.practicum.ewm.dto.UserDto;
+import ru.practicum.ewm.dto.UserShortDto;
 import ru.practicum.ewm.service.CommentService;
 import ru.practicum.ewm.service.StatsHelperService;
 
@@ -29,14 +31,14 @@ import java.util.List;
 public class CommentServiceImpl implements CommentService {
 
     private final CommentRepository commentRepository;
-    private final UserRepository userRepository;
+    private final UserClient userClient;
     private final EventRepository eventRepository;
     private final CommentMapper commentMapper;
     private final StatsHelperService statsHelperService;
 
     @Override
     public CommentDto addComment(Long userId, Long eventId, NewCommentDto newCommentDto) {
-        User user = getUser(userId);
+        checkUserExists(userId);
         Event event = getEvent(eventId);
 
         if (event.getState() != EventState.PUBLISHED) {
@@ -44,14 +46,14 @@ public class CommentServiceImpl implements CommentService {
         }
 
         Comment comment = commentMapper.toEntity(newCommentDto);
-        comment.setAuthor(user);
+        comment.setAuthorId(userId);
         comment.setEvent(event);
         comment.setStatus(CommentStatus.PENDING);
         comment.setCreated(LocalDateTime.now());
 
         Comment savedComment = commentRepository.save(comment);
 
-        return commentMapper.toDto(savedComment);
+        return toDto(savedComment);
     }
 
     @Override
@@ -63,7 +65,7 @@ public class CommentServiceImpl implements CommentService {
         return commentRepository.findByAuthorId(userId, pageable)
                 .getContent()
                 .stream()
-                .map(commentMapper::toDto)
+                .map(this::toDto)
                 .toList();
     }
 
@@ -75,7 +77,7 @@ public class CommentServiceImpl implements CommentService {
                 .orElseThrow(() ->
                         new NotFoundException("Comment with id=" + commentId + " was not found"));
 
-        if (!comment.getAuthor().getId().equals(userId)) {
+        if (!comment.getAuthorId().equals(userId)) {
             throw new NotFoundException("Comment with id=" + commentId + " was not found");
         }
 
@@ -93,7 +95,7 @@ public class CommentServiceImpl implements CommentService {
 
         Comment updatedComment = commentRepository.save(comment);
 
-        return commentMapper.toDto(updatedComment);
+        return toDto(updatedComment);
     }
 
     @Override
@@ -104,7 +106,7 @@ public class CommentServiceImpl implements CommentService {
                 .orElseThrow(() ->
                         new NotFoundException("Comment with id=" + commentId + " was not found"));
 
-        if (!comment.getAuthor().getId().equals(userId)) {
+        if (!comment.getAuthorId().equals(userId)) {
             throw new NotFoundException("Comment with id=" + commentId + " was not found");
         }
 
@@ -124,7 +126,7 @@ public class CommentServiceImpl implements CommentService {
                 .findByEventIdAndStatus(eventId, CommentStatus.PUBLISHED, pageable)
                 .getContent()
                 .stream()
-                .map(commentMapper::toDto)
+                .map(this::toDto)
                 .toList();
 
         statsHelperService.hit(request);
@@ -144,7 +146,7 @@ public class CommentServiceImpl implements CommentService {
 
         statsHelperService.hit(request);
 
-        return commentMapper.toDto(comment);
+        return toDto(comment);
     }
 
     @Override
@@ -157,7 +159,7 @@ public class CommentServiceImpl implements CommentService {
         return commentRepository.findAllByStatus(commentStatus, pageable)
                 .getContent()
                 .stream()
-                .map(commentMapper::toDto)
+                .map(this::toDto)
                 .toList();
     }
 
@@ -173,7 +175,7 @@ public class CommentServiceImpl implements CommentService {
         comment.setStatus(CommentStatus.PUBLISHED);
         comment.setUpdated(LocalDateTime.now());
 
-        return commentMapper.toDto(commentRepository.save(comment));
+        return toDto(commentRepository.save(comment));
     }
 
     @Override
@@ -188,7 +190,7 @@ public class CommentServiceImpl implements CommentService {
         comment.setStatus(CommentStatus.REJECTED);
         comment.setUpdated(LocalDateTime.now());
 
-        return commentMapper.toDto(commentRepository.save(comment));
+        return toDto(commentRepository.save(comment));
     }
 
     @Override
@@ -206,12 +208,6 @@ public class CommentServiceImpl implements CommentService {
                         new NotFoundException("Comment with id=" + commentId + " was not found"));
     }
 
-    private User getUser(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new NotFoundException("User with id=" + userId + " was not found"));
-    }
-
     private Event getEvent(Long eventId) {
         return eventRepository.findById(eventId)
                 .orElseThrow(() ->
@@ -219,14 +215,25 @@ public class CommentServiceImpl implements CommentService {
     }
 
     private void checkUserExists(Long userId) {
-        if (!userRepository.existsById(userId)) {
-            throw new NotFoundException("User with id=" + userId + " was not found");
-        }
+        userClient.getUser(userId);
     }
 
     private void checkEventExists(Long eventId) {
         if (!eventRepository.existsById(eventId)) {
             throw new NotFoundException("Event with id=" + eventId + " was not found");
         }
+    }
+
+    private CommentDto toDto(Comment comment) {
+        CommentDto dto = commentMapper.toDto(comment);
+
+        UserDto user = userClient.getUser(comment.getAuthorId());
+
+        dto.setAuthor(UserShortDto.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .build());
+
+        return dto;
     }
 }
