@@ -33,5 +33,5 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
             "WHERE c.eventId IN :eventIds AND c.status = :status " +
             "GROUP BY c.eventId")
     List<Object[]> countByEventIdsAndStatus(@Param("eventIds") Collection<Long> eventIds,
-                                             @Param("status") CommentStatus status);
+                                            @Param("status") CommentStatus status);
 }

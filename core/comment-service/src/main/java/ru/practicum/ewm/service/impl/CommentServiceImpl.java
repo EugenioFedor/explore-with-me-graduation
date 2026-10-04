@@ -7,24 +7,23 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import ru.practicum.ewm.dto.CommentDto;
-import ru.practicum.ewm.dto.NewCommentDto;
-import ru.practicum.ewm.dto.UpdateCommentDto;
+import ru.practicum.ewm.client.EventClient;
+import ru.practicum.ewm.client.UserClient;
+import ru.practicum.ewm.dto.*;
 import ru.practicum.ewm.exception.ConflictException;
 import ru.practicum.ewm.exception.NotFoundException;
 import ru.practicum.ewm.mapper.CommentMapper;
-import ru.practicum.ewm.model.*;
+import ru.practicum.ewm.model.Comment;
+import ru.practicum.ewm.model.CommentStatus;
 import ru.practicum.ewm.repository.CommentRepository;
-import ru.practicum.ewm.client.UserClient;
-import ru.practicum.ewm.client.EventClient;
-import ru.practicum.ewm.dto.EventForCommentDto;
-import ru.practicum.ewm.dto.UserDto;
-import ru.practicum.ewm.dto.UserShortDto;
 import ru.practicum.ewm.service.CommentService;
 import ru.practicum.ewm.service.StatsHelperService;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -63,11 +62,10 @@ public class CommentServiceImpl implements CommentService {
 
         Pageable pageable = PageRequest.of(from / size, size);
 
-        return commentRepository.findByAuthorId(userId, pageable)
-                .getContent()
-                .stream()
-                .map(this::toDto)
-                .toList();
+        List<Comment> comments = commentRepository.findByAuthorId(userId, pageable)
+                .getContent();
+
+        return toDtoList(comments);
     }
 
     @Override
@@ -123,16 +121,13 @@ public class CommentServiceImpl implements CommentService {
 
         Pageable pageable = PageRequest.of(from / size, size, Sort.by(Sort.Direction.ASC, "created"));
 
-        List<CommentDto> comments = commentRepository
+        List<Comment> comments = commentRepository
                 .findByEventIdAndStatus(eventId, CommentStatus.PUBLISHED, pageable)
-                .getContent()
-                .stream()
-                .map(this::toDto)
-                .toList();
+                .getContent();
 
         statsHelperService.hit(request);
 
-        return comments;
+        return toDtoList(comments);
     }
 
     @Override
@@ -157,11 +152,10 @@ public class CommentServiceImpl implements CommentService {
 
         Pageable pageable = PageRequest.of(from / size, size, Sort.by(Sort.Direction.DESC, "created"));
 
-        return commentRepository.findAllByStatus(commentStatus, pageable)
-                .getContent()
-                .stream()
-                .map(this::toDto)
-                .toList();
+        List<Comment> comments = commentRepository.findAllByStatus(commentStatus, pageable)
+                .getContent();
+
+        return toDtoList(comments);
     }
 
     @Override
@@ -222,9 +216,37 @@ public class CommentServiceImpl implements CommentService {
     }
 
     private CommentDto toDto(Comment comment) {
-        CommentDto dto = commentMapper.toDto(comment);
-
         UserDto user = userClient.getUser(comment.getAuthorId());
+        return toDto(comment, user);
+    }
+
+    private List<CommentDto> toDtoList(List<Comment> comments) {
+        if (comments.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> authorIds = comments.stream()
+                .map(Comment::getAuthorId)
+                .distinct()
+                .toList();
+
+        Map<Long, UserDto> usersById = userClient.getUsers(authorIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        UserDto::getId,
+                        Function.identity()
+                ));
+
+        return comments.stream()
+                .map(comment -> toDto(
+                        comment,
+                        usersById.get(comment.getAuthorId())
+                ))
+                .toList();
+    }
+
+    private CommentDto toDto(Comment comment, UserDto user) {
+        CommentDto dto = commentMapper.toDto(comment);
 
         dto.setAuthor(UserShortDto.builder()
                 .id(user.getId())

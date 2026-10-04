@@ -24,12 +24,12 @@ public interface RequestRepository extends JpaRepository<Request, Long> {
     long countByEventIdAndStatus(Long eventId, RequestStatus status);
 
     @Query("""
-        select r.eventId, count(r.id)
-        from Request r
-        where r.eventId in :eventIds
-          and r.status = :status
-        group by r.eventId
-        """)
+            select r.eventId, count(r.id)
+            from Request r
+            where r.eventId in :eventIds
+              and r.status = :status
+            group by r.eventId
+            """)
     List<Object[]> countByEventIdsAndStatus(@Param("eventIds") Collection<Long> eventIds,
-                                             @Param("status") RequestStatus status);
+                                            @Param("status") RequestStatus status);
 }

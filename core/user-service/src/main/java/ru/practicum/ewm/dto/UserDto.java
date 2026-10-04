@@ -9,7 +9,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class EventForCommentDto {
+public class UserDto {
     private Long id;
-    private String state;
+    private String email;
+    private String name;
 }
