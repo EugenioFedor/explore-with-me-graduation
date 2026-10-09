@@ -7,7 +7,7 @@ COPY . .
 RUN mvn -pl infra/gateway-server -am package -DskipTests
 
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 

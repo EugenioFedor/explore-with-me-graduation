@@ -1,6 +1,9 @@
 package ru.practicum.ewm.exception;
 
 import jakarta.validation.ConstraintViolationException;
+import io.grpc.StatusRuntimeException;
+import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -34,6 +37,8 @@ public class ErrorHandler {
             MethodArgumentNotValidException.class,
             ConstraintViolationException.class,
             MissingServletRequestParameterException.class,
+            MissingRequestHeaderException.class,
+            MethodArgumentTypeMismatchException.class,
             IllegalArgumentException.class
     })
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -72,6 +77,15 @@ public class ErrorHandler {
                 .status("CONFLICT")
                 .timestamp(LocalDateTime.now())
                 .build();
+    }
+
+    @ExceptionHandler(StatusRuntimeException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public ApiError handleGrpcUnavailable(final StatusRuntimeException e) {
+        return ApiError.builder().errors(List.of(e.getClass().getSimpleName()))
+                .message("Recommendation service is unavailable")
+                .reason("Required service is temporarily unavailable.")
+                .status("SERVICE_UNAVAILABLE").timestamp(LocalDateTime.now()).build();
     }
 
     @ExceptionHandler

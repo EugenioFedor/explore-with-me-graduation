@@ -1,6 +1,5 @@
 package ru.practicum.ewm.service.impl;
 
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -90,18 +89,17 @@ public class EventServiceImpl implements EventService {
                     .toList();
         }
 
-        Map<Long, Long> views = statsHelperService.getViews(events);
-        statsHelperService.hit(params.getRequest());
+        Map<Long, Double> ratings = statsHelperService.getRatings(events);
 
         List<EventShortDto> result = events.stream()
                 .map(event -> toShortDto(event,
-                        views.getOrDefault(event.getId(), 0L),
+                        ratings.getOrDefault(event.getId(), 0.0),
                         commentsCount.getOrDefault(event.getId(), 0L)))
                 .toList();
 
-        if ("VIEWS".equalsIgnoreCase(params.getSort())) {
+        if ("RATING".equalsIgnoreCase(params.getSort())) {
             return result.stream()
-                    .sorted(Comparator.comparing(EventShortDto::getViews).reversed())
+                    .sorted(Comparator.comparing(EventShortDto::getRating).reversed())
                     .toList();
         }
 
@@ -109,7 +107,7 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public EventFullDto getPublicEvent(Long eventId, HttpServletRequest request) {
+    public EventFullDto getPublicEvent(Long eventId, long userId) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() ->
                         new NotFoundException("Event with id=" + eventId + " was not found"));
@@ -118,12 +116,12 @@ public class EventServiceImpl implements EventService {
             throw new NotFoundException("Event with id=" + eventId + " was not found");
         }
 
-        statsHelperService.hit(request);
+        statsHelperService.view(userId, eventId);
 
-        long views = statsHelperService.getViews(event);
+        double rating = statsHelperService.getRating(event);
         long commentsCount = getCommentsCount(eventId);
 
-        return toFullDto(event, views, commentsCount);
+        return toFullDto(event, rating, commentsCount);
     }
 
     @Override
@@ -136,12 +134,12 @@ public class EventServiceImpl implements EventService {
                 .findByInitiatorId(userId, pageable)
                 .getContent();
 
-        Map<Long, Long> views = statsHelperService.getViews(events);
+        Map<Long, Double> ratings = statsHelperService.getRatings(events);
         Map<Long, Long> commentsCount = getCommentsCount(events);
 
         return events.stream()
                 .map(event ->
-                        toShortDto(event, views.getOrDefault(event.getId(), 0L),
+                        toShortDto(event, ratings.getOrDefault(event.getId(), 0.0),
                                 commentsCount.getOrDefault(event.getId(), 0L)))
                 .toList();
     }
@@ -178,10 +176,10 @@ public class EventServiceImpl implements EventService {
                 .orElseThrow(() ->
                         new NotFoundException("Event with id=" + eventId + " was not found"));
 
-        long views = statsHelperService.getViews(event);
+        double rating = statsHelperService.getRating(event);
         long commentsCount = getCommentsCount(eventId);
 
-        return toFullDto(event, views, commentsCount);
+        return toFullDto(event, rating, commentsCount);
     }
 
     @Override
@@ -250,10 +248,10 @@ public class EventServiceImpl implements EventService {
 
         event = eventRepository.save(event);
 
-        long views = statsHelperService.getViews(event);
+        double rating = statsHelperService.getRating(event);
         long commentsCount = getCommentsCount(eventId);
 
-        return toFullDto(event, views, commentsCount);
+        return toFullDto(event, rating, commentsCount);
     }
 
     @Override
@@ -285,12 +283,12 @@ public class EventServiceImpl implements EventService {
 
         List<Event> events = eventRepository.findAll(specification, pageable).getContent();
 
-        Map<Long, Long> views = statsHelperService.getViews(events);
+        Map<Long, Double> ratings = statsHelperService.getRatings(events);
         Map<Long, Long> commentsCount = getCommentsCount(events);
 
         return events.stream()
                 .map(event -> toFullDto(event,
-                        views.getOrDefault(event.getId(), 0L),
+                        ratings.getOrDefault(event.getId(), 0.0),
                         commentsCount.getOrDefault(event.getId(), 0L)))
                 .toList();
     }
@@ -359,31 +357,58 @@ public class EventServiceImpl implements EventService {
 
         event = eventRepository.save(event);
 
-        long views = statsHelperService.getViews(event);
+        double rating = statsHelperService.getRating(event);
         long commentsCount = getCommentsCount(eventId);
 
-        return toFullDto(event, views, commentsCount);
+        return toFullDto(event, rating, commentsCount);
     }
 
-    private EventShortDto toShortDto(Event event, long views, long commentsCount) {
+    @Override
+    public List<EventShortDto> getRecommendations(long userId, int size) {
+        checkUserExists(userId);
+        var recommendations = statsHelperService.recommendations(userId, size);
+        Map<Long, Event> events = eventRepository.findAllById(recommendations.stream()
+                        .map(ru.practicum.ewm.stats.proto.RecommendedEventProto::getEventId).toList()).stream()
+                .filter(event -> event.getState() == EventState.PUBLISHED)
+                .collect(java.util.stream.Collectors.toMap(Event::getId, event -> event));
+        Map<Long, Double> ratings = statsHelperService.getRatings(events.values());
+        Map<Long, Long> comments = getCommentsCount(List.copyOf(events.values()));
+        return recommendations.stream().filter(item -> events.containsKey(item.getEventId()))
+                .map(item -> toShortDto(events.get(item.getEventId()),
+                        ratings.getOrDefault(item.getEventId(), 0.0), comments.getOrDefault(item.getEventId(), 0L)))
+                .toList();
+    }
+
+    @Override
+    public void likeEvent(long userId, long eventId) {
+        checkUserExists(userId);
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
+        if (event.getState() != EventState.PUBLISHED || !requestClient.hasConfirmedParticipation(eventId, userId)) {
+            throw new IllegalArgumentException("Only a participant with a confirmed request can like a published event");
+        }
+        statsHelperService.like(userId, eventId);
+    }
+
+    private EventShortDto toShortDto(Event event, double rating, long commentsCount) {
         EventShortDto dto = eventMapper.toShortDto(event);
 
         dto.setInitiator(getInitiator(event.getInitiatorId()));
         dto.setConfirmedRequests(getConfirmedCount(event.getId()));
 
-        dto.setViews(views);
+        dto.setRating(rating);
         dto.setComments(commentsCount);
 
         return dto;
     }
 
-    private EventFullDto toFullDto(Event event, long views, long commentsCount) {
+    private EventFullDto toFullDto(Event event, double rating, long commentsCount) {
         EventFullDto dto = eventMapper.toFullDto(event);
 
         dto.setInitiator(getInitiator(event.getInitiatorId()));
         dto.setConfirmedRequests(getConfirmedCount(event.getId()));
 
-        dto.setViews(views);
+        dto.setRating(rating);
         dto.setComments(commentsCount);
 
         return dto;

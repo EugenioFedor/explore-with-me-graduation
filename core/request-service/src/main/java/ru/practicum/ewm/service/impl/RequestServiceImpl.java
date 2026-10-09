@@ -1,6 +1,9 @@
 package ru.practicum.ewm.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
+import ru.practicum.stats.client.CollectorClient;
+import ru.practicum.ewm.stats.proto.ActionTypeProto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.practicum.ewm.client.EventClient;
@@ -27,8 +30,10 @@ public class RequestServiceImpl implements RequestService {
     private final EventClient eventClient;
     private final UserClient userClient;
     private final RequestMapper requestMapper;
+    private final CollectorClient collectorClient;
 
     @Override
+    @Transactional
     public ParticipationRequestDto addRequest(Long userId, Long eventId) {
         log.info("User id={} requests participation in event id={}", userId, eventId);
         checkUserExists(userId);
@@ -63,7 +68,9 @@ public class RequestServiceImpl implements RequestService {
                 .status(autoConfirm ? RequestStatus.CONFIRMED : RequestStatus.PENDING)
                 .build();
 
-        return requestMapper.toDto(requestRepository.save(request));
+        request = requestRepository.saveAndFlush(request);
+        collectorClient.collect(userId, eventId, ActionTypeProto.ACTION_REGISTER);
+        return requestMapper.toDto(request);
     }
 
     @Override

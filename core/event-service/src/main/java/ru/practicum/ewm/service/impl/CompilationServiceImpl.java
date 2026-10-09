@@ -15,6 +15,7 @@ import ru.practicum.ewm.model.Event;
 import ru.practicum.ewm.repository.CompilationRepository;
 import ru.practicum.ewm.repository.EventRepository;
 import ru.practicum.ewm.service.CompilationService;
+import ru.practicum.ewm.service.StatsHelperService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +29,7 @@ public class CompilationServiceImpl implements CompilationService {
     private final EventRepository eventRepository;
     private final CompilationMapper compilationMapper;
     private final EventMapper eventMapper;
+    private final StatsHelperService statsHelperService;
 
     @Override
     public CompilationDto addCompilation(NewCompilationDto newCompilationDto) {
@@ -79,9 +81,7 @@ public class CompilationServiceImpl implements CompilationService {
     private CompilationDto toDtoWithEvents(Compilation compilation) {
         CompilationDto dto = compilationMapper.toDto(compilation);
         if (compilation.getEvents() != null) {
-            dto.setEvents(compilation.getEvents().stream()
-                    .map(eventMapper::toShortDto)
-                    .toList());
+            dto.setEvents(eventDtos(compilation.getEvents()));
         }
         return dto;
     }
@@ -98,9 +98,7 @@ public class CompilationServiceImpl implements CompilationService {
                 .map(compilation -> {
                     CompilationDto dto = compilationMapper.toDto(compilation);
                     if (compilation.getEvents() != null) {
-                        dto.setEvents(compilation.getEvents().stream()
-                                .map(eventMapper::toShortDto)
-                                .toList());
+                        dto.setEvents(eventDtos(compilation.getEvents()));
                     }
                     return dto;
                 })
@@ -114,10 +112,17 @@ public class CompilationServiceImpl implements CompilationService {
 
         CompilationDto dto = compilationMapper.toDto(compilation);
         if (compilation.getEvents() != null) {
-            dto.setEvents(compilation.getEvents().stream()
-                    .map(eventMapper::toShortDto)
-                    .toList());
+            dto.setEvents(eventDtos(compilation.getEvents()));
         }
         return dto;
+    }
+
+    private List<ru.practicum.ewm.dto.EventShortDto> eventDtos(List<Event> events) {
+        var ratings = statsHelperService.getRatings(events);
+        return events.stream().map(event -> {
+            var dto = eventMapper.toShortDto(event);
+            dto.setRating(ratings.getOrDefault(event.getId(), 0.0));
+            return dto;
+        }).toList();
     }
 }

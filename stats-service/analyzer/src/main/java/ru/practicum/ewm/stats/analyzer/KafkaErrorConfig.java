@@ -1,0 +1,15 @@
+package ru.practicum.ewm.stats.analyzer;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.util.backoff.FixedBackOff;
+
+@Configuration
+public class KafkaErrorConfig {
+    @Bean
+    public DefaultErrorHandler kafkaErrorHandler() {
+        // Do not acknowledge and silently discard data when Kafka or PostgreSQL is unavailable.
+        return new DefaultErrorHandler(new FixedBackOff(1000L, FixedBackOff.UNLIMITED_ATTEMPTS));
+    }
+}
