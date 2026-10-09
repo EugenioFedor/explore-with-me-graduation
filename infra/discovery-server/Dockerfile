@@ -6,7 +6,7 @@ COPY . .
 
 RUN mvn -pl infra/discovery-server -am package -DskipTests
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 

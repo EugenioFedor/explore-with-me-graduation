@@ -25,6 +25,10 @@
 
     <properties>
         <java.version>21</java.version>
+        <grpc-starter.version>3.1.0.RELEASE</grpc-starter.version>
+        <grpc.version>1.63.0</grpc.version>
+        <protobuf.version>3.25.3</protobuf.version>
+        <avro.version>1.11.4</avro.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <mapstruct.version>1.6.0</mapstruct.version>
@@ -34,6 +38,10 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>io.grpc</groupId><artifactId>grpc-bom</artifactId>
+                <version>${grpc.version}</version><type>pom</type><scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>

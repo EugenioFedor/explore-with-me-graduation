@@ -7,7 +7,7 @@ COPY . .
 RUN mvn -pl core/event-service -am package -DskipTests
 
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
