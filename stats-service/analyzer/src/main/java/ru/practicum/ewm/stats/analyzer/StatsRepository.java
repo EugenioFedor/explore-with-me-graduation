@@ -16,27 +16,29 @@ import java.util.Map;
 public class StatsRepository {
     private final NamedParameterJdbcTemplate jdbc;
 
-    public void saveAction(UserActionAvro action) {
-        jdbc.update("""
+    public void saveActions(List<UserActionAvro> actions) {
+        jdbc.batchUpdate("""
                 INSERT INTO user_interactions(user_id, event_id, weight, interacted_at)
                 VALUES (:user, :event, :weight, :timestamp)
                 ON CONFLICT (user_id, event_id) DO UPDATE
                 SET weight = GREATEST(user_interactions.weight, EXCLUDED.weight),
                     interacted_at = GREATEST(user_interactions.interacted_at, EXCLUDED.interacted_at)
-                """, Map.of("user", action.getUserId(), "event", action.getEventId(),
-                "weight", ActionWeights.of(action.getActionType()), "timestamp", Timestamp.from(action.getTimestamp())));
+                """, actions.stream().map(action -> Map.<String, Object>of("user", action.getUserId(), "event", action.getEventId(),
+                "weight", ActionWeights.of(action.getActionType()), "timestamp", Timestamp.from(action.getTimestamp())))
+                .toArray(Map[]::new));
     }
 
-    public void saveSimilarity(EventSimilarityAvro pair) {
+    public void saveSimilarities(List<EventSimilarityAvro> pairs) {
         // Canonical pair key also protects against reversed pairs from external producers.
-        jdbc.update("""
+        jdbc.batchUpdate("""
                 INSERT INTO event_similarities(event_a, event_b, score, calculated_at)
                 VALUES (:first, :second, :score, :timestamp)
                 ON CONFLICT (event_a, event_b) DO UPDATE
                 SET score = EXCLUDED.score, calculated_at = EXCLUDED.calculated_at
-                """, Map.of("first", Math.min(pair.getEventA(), pair.getEventB()),
+                """, pairs.stream().map(pair -> Map.<String, Object>of("first", Math.min(pair.getEventA(), pair.getEventB()),
                 "second", Math.max(pair.getEventA(), pair.getEventB()), "score", pair.getScore(),
-                "timestamp", Timestamp.from(pair.getTimestamp())));
+                "timestamp", Timestamp.from(pair.getTimestamp())))
+                .toArray(Map[]::new));
     }
 
     public List<Interaction> history(long userId) {
