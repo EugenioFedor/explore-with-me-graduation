@@ -27,4 +27,9 @@ public class InternalRequestController {
         List<Object[]> rows = requestRepository.countByEventIdsAndStatus(eventIds, RequestStatus.CONFIRMED);
         return rows.stream().collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
     }
+
+    @GetMapping("/events/{eventId}/users/{userId}/confirmed")
+    public boolean hasConfirmedParticipation(@PathVariable long eventId, @PathVariable long userId) {
+        return requestRepository.existsByEventIdAndRequesterIdAndStatus(eventId, userId, RequestStatus.CONFIRMED);
+    }
 }

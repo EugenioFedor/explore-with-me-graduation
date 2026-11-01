@@ -1411,6 +1411,10 @@
                       {
                         "key": "Accept",
                         "value": "application/json"
+                      },
+                      {
+                        "key": "X-EWM-USER-ID",
+                        "value": "1"
                       }
                     ],
                     "url": {
@@ -1503,7 +1507,7 @@
                           "const source = pm.collectionVariables.get('response');\r",
                           "const target = pm.response.json()[0];\r",
                           "\r",
-                          "pm.test(\"Событие должно содержать поля: id, title, annotation, category, paid, eventDate, initiator, views, confirmedRequests, description, participantLimit, state, createdOn, publishedOn, location, requestModeration\", function () {\r",
+                          "pm.test(\"Событие должно содержать поля: id, title, annotation, category, paid, eventDate, initiator, rating, confirmedRequests, description, participantLimit, state, createdOn, publishedOn, location, requestModeration\", function () {\r",
                           "pm.expect(target).to.have.property('id');\r",
                           "pm.expect(target).to.have.property('title');\r",
                           "pm.expect(target).to.have.property('annotation');\r",
@@ -1511,7 +1515,7 @@
                           "pm.expect(target).to.have.property('paid');\r",
                           "pm.expect(target).to.have.property('eventDate');\r",
                           "pm.expect(target).to.have.property('initiator');\r",
-                          "pm.expect(target).to.have.property('views');\r",
+                          "pm.expect(target).to.have.property('rating');\r",
                           "pm.expect(target).to.have.property('confirmedRequests');\r",
                           "pm.expect(target).to.have.property('description');\r",
                           "pm.expect(target).to.have.property('participantLimit');\r",
@@ -1717,7 +1721,7 @@
                   "response": []
                 },
                 {
-                  "name": "Проверка работы поля views",
+                  "name": "Проверка работы поля rating",
                   "event": [
                     {
                       "listen": "prerequest",
@@ -1734,6 +1738,7 @@
                           "        event = await api.publishEvent(event.id);\r",
                           "        await api.findEvent(event.id)\r",
                           "        await api.findEvent(event.id)\r",
+                          "        await new Promise(resolve => setTimeout(resolve, 1000));\r",
                           "        pm.collectionVariables.set(\"eid\", event.id)\r",
                           "    } catch(err) {\r",
                           "        console.error(\"Ошибка при подготовке тестовых данных.\", err);\r",
@@ -1772,7 +1777,7 @@
                           "\r",
                           "const target = pm.response.json();\r",
                           "\r",
-                          "pm.test(\"Событие должно содержать поля: id, title, annotation, category, paid, eventDate, initiator, views, confirmedRequests, description, participantLimit, state, createdOn, publishedOn, location, requestModeration\", function () {\r",
+                          "pm.test(\"Событие должно содержать поля: id, title, annotation, category, paid, eventDate, initiator, rating, confirmedRequests, description, participantLimit, state, createdOn, publishedOn, location, requestModeration\", function () {\r",
                           "pm.expect(target).to.have.property('id');\r",
                           "pm.expect(target).to.have.property('title');\r",
                           "pm.expect(target).to.have.property('annotation');\r",
@@ -1780,7 +1785,7 @@
                           "pm.expect(target).to.have.property('paid');\r",
                           "pm.expect(target).to.have.property('eventDate');\r",
                           "pm.expect(target).to.have.property('initiator');\r",
-                          "pm.expect(target).to.have.property('views');\r",
+                          "pm.expect(target).to.have.property('rating');\r",
                           "pm.expect(target).to.have.property('confirmedRequests');\r",
                           "pm.expect(target).to.have.property('description');\r",
                           "pm.expect(target).to.have.property('participantLimit');\r",
@@ -1791,8 +1796,8 @@
                           "pm.expect(target).to.have.property('requestModeration');\r",
                           "});\r",
                           "\r",
-                          "pm.test(\"Значение поля views должно увеличится на 1 после выполнения GET запроса с уникального IP к событию\", function () {\r",
-                          "    pm.expect(target.views).equal(1);\r",
+                          "pm.test(\"Повторные просмотры одного пользователя дают максимальный вес 0.4\", function () {\r",
+                          "    pm.expect(target.rating).closeTo(0.4, 0.000001);\r",
                           "    \r",
                           "});"
                         ],
@@ -1806,6 +1811,10 @@
                       {
                         "key": "Accept",
                         "value": "application/json"
+                      },
+                      {
+                        "key": "X-EWM-USER-ID",
+                        "value": "1"
                       }
                     ],
                     "url": {
@@ -12328,7 +12337,7 @@
                   "const source = pm.collectionVariables.get('response');\r",
                   "const target = pm.response.json()[0];\r",
                   "\r",
-                  "pm.test(\"Событие должно содержать поля: id, title, annotation, category, paid, eventDate, initiator, views, confirmedRequests, description, participantLimit, state, createdOn, publishedOn, location, requestModeration\", function () {\r",
+                  "pm.test(\"Событие должно содержать поля: id, title, annotation, category, paid, eventDate, initiator, rating, confirmedRequests, description, participantLimit, state, createdOn, publishedOn, location, requestModeration\", function () {\r",
                   "pm.expect(target).to.have.property('id');\r",
                   "pm.expect(target).to.have.property('title');\r",
                   "pm.expect(target).to.have.property('annotation');\r",
@@ -12336,7 +12345,7 @@
                   "pm.expect(target).to.have.property('paid');\r",
                   "pm.expect(target).to.have.property('eventDate');\r",
                   "pm.expect(target).to.have.property('initiator');\r",
-                  "pm.expect(target).to.have.property('views');\r",
+                  "pm.expect(target).to.have.property('rating');\r",
                   "pm.expect(target).to.have.property('confirmedRequests');\r",
                   "pm.expect(target).to.have.property('description');\r",
                   "pm.expect(target).to.have.property('participantLimit');\r",
@@ -12580,7 +12589,7 @@
                   "const source = pm.collectionVariables.get('response');\r",
                   "const target = pm.response.json()[0];\r",
                   "\r",
-                  "pm.test(\"Событие должно содержать поля: id, title, annotation, category, paid, eventDate, initiator, views, confirmedRequests\", function () {\r",
+                  "pm.test(\"Событие должно содержать поля: id, title, annotation, category, paid, eventDate, initiator, rating, confirmedRequests\", function () {\r",
                   "pm.expect(target).to.have.property('id');\r",
                   "pm.expect(target).to.have.property('title');\r",
                   "pm.expect(target).to.have.property('annotation');\r",
@@ -12588,7 +12597,7 @@
                   "pm.expect(target).to.have.property('paid');\r",
                   "pm.expect(target).to.have.property('eventDate');\r",
                   "pm.expect(target).to.have.property('initiator');\r",
-                  "pm.expect(target).to.have.property('views');\r",
+                  "pm.expect(target).to.have.property('rating');\r",
                   "pm.expect(target).to.have.property('confirmedRequests');\r",
                   "});\r",
                   "\r",
@@ -12727,7 +12736,7 @@
                   "const source = pm.collectionVariables.get('response');\r",
                   "const target = pm.response.json();\r",
                   "\r",
-                  "pm.test(\"Событие должно содержать поля: id, title, annotation, category, paid, eventDate, initiator, views, confirmedRequests, description, participantLimit, state, createdOn, publishedOn, location, requestModeration\", function () {\r",
+                  "pm.test(\"Событие должно содержать поля: id, title, annotation, category, paid, eventDate, initiator, rating, confirmedRequests, description, participantLimit, state, createdOn, publishedOn, location, requestModeration\", function () {\r",
                   "pm.expect(target).to.have.property('id');\r",
                   "pm.expect(target).to.have.property('title');\r",
                   "pm.expect(target).to.have.property('annotation');\r",
@@ -12735,7 +12744,7 @@
                   "pm.expect(target).to.have.property('paid');\r",
                   "pm.expect(target).to.have.property('eventDate');\r",
                   "pm.expect(target).to.have.property('initiator');\r",
-                  "pm.expect(target).to.have.property('views');\r",
+                  "pm.expect(target).to.have.property('rating');\r",
                   "pm.expect(target).to.have.property('confirmedRequests');\r",
                   "pm.expect(target).to.have.property('description');\r",
                   "pm.expect(target).to.have.property('participantLimit');\r",
@@ -12766,6 +12775,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-EWM-USER-ID",
+                "value": "1"
               }
             ],
             "url": {
@@ -14457,7 +14470,7 @@
           "                url: this.baseUrl + path,",
           "                method: method,",
           "                body: body == null ? \"\" : JSON.stringify(body),",
-          "                header: { \"Content-Type\": \"application/json\" },",
+          "                header: { \"Content-Type\": \"application/json\", \"X-EWM-USER-ID\": \"1\" },",
           "            };",
           "            if(verbose) {",
           "                console.log(\"Отправляю запрос: \", request);",
